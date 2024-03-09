@@ -3,22 +3,22 @@ import { Inter } from "@next/font/google";
 import LocalFont from "@next/font/local";
 import { Metadata } from "next";
 import { Analytics } from "./components/analytics";
+import banner from "../public/banner.png";
 
 export const metadata: Metadata = {
   title: {
-    default: "chronark.com",
-    template: "%s | chronark.com",
+    default: "Aethernum LLC",
+    template: "%s | aethernum.com",
   },
-  description: "Co-founder of unkey.dev and founder of planetfall.io",
+  description: "Aethernum LLC - A startup tech company",
   openGraph: {
-    title: "chronark.com",
-    description:
-      "Co-founder of unkey.dev and founder of planetfall.io",
-    url: "https://chronark.com",
-    siteName: "chronark.com",
+    title: "aethernum.io",
+    description: "Aethernum LLC - A startup tech company", // make sure looks good when link to aethernum is shared
+    url: "https://aethernum.io",
+    siteName: "aethernum.io",
     images: [
       {
-        url: "https://chronark.com/og.png",
+        url: banner.src, // prefer to use a link in the future. like https://aethernum.io/banner.png
         width: 1920,
         height: 1080,
       },
@@ -36,10 +36,6 @@ export const metadata: Metadata = {
       "max-image-preview": "large",
       "max-snippet": -1,
     },
-  },
-  twitter: {
-    title: "Chronark",
-    card: "summary_large_image",
   },
   icons: {
     shortcut: "/favicon.png",
@@ -66,8 +62,9 @@ export default function RootLayout({
         <Analytics />
       </head>
       <body
-        className={`bg-black ${process.env.NODE_ENV === "development" ? "debug-screens" : undefined
-          }`}
+        className={`bg-black ${
+          process.env.NODE_ENV === "development" ? "debug-screens" : undefined
+        }`}
       >
         {children}
       </body>
