@@ -7,6 +7,7 @@ const nextConfig = {
 		mdxRs: true,
 	},
 	output: "export",
+	trailingSlash: true,
 };
 
 export default withContentlayer(nextConfig);
