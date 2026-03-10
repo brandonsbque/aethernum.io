@@ -8,10 +8,10 @@ import { Article } from "./article";
 export const revalidate = 60;
 export default async function ProjectsPage() {
 	const featured = allProjects.find(
-		(project) => project.slug === "finance_app"
+		(project) => project.slug === "walletwise",
 	)!;
 	const top2 = allProjects.find(
-		(project) => project.slug === "vision_pro_app"
+		(project) => project.slug === "vision_pro_app",
 	)!;
 	const top3 = allProjects.find((project) => project.slug === "coming_soon")!;
 	const sorted = allProjects
@@ -20,12 +20,12 @@ export default async function ProjectsPage() {
 			(project) =>
 				project.slug !== featured.slug &&
 				project.slug !== top2.slug &&
-				project.slug !== top3.slug
+				project.slug !== top3.slug,
 		)
 		.sort(
 			(a, b) =>
 				new Date(b.date ?? Number.POSITIVE_INFINITY).getTime() -
-				new Date(a.date ?? Number.POSITIVE_INFINITY).getTime()
+				new Date(a.date ?? Number.POSITIVE_INFINITY).getTime(),
 		);
 
 	return (
