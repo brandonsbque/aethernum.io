@@ -18,7 +18,7 @@ export async function generateStaticParams(): Promise<Props["params"][]> {
 
 export default async function PrivacyPage({ params }: Props) {
 	return (
-		<div className="relative min-h-screen bg-black">
+		<div className="relative min-h-screen bg-gradient-to-tl from-black via-zinc-400/10 to-black">
 			<div className="px-4 py-12 mx-auto prose prose-invert prose-zinc prose-quoteless max-w-2xl">
 				<h1 className="text-zinc-100">Privacy Policy</h1>{" "}
 				<p className="text-sm text-zinc-100">Last Updated: March 9, 2026</p>
