@@ -42,6 +42,10 @@ export const Header: React.FC<Props> = ({ project }) => {
 			label: "Privacy",
 			href: `/projects/${project.slug}/privacy`,
 		});
+		links.push({
+			label: "Terms",
+			href: `/projects/${project.slug}/terms`,
+		});
 	}
 	useEffect(() => {
 		if (!ref.current) return;
