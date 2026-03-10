@@ -10,6 +10,7 @@ type Props = {
 		description: string;
 		repository?: string;
 		email?: string;
+		slug: string;
 	};
 };
 export const Header: React.FC<Props> = ({ project }) => {
@@ -35,10 +36,17 @@ export const Header: React.FC<Props> = ({ project }) => {
 			href: project.email,
 		});
 	}
+
+	if (project.slug === "walletwise") {
+		links.push({
+			label: "Privacy",
+			href: `/projects/${project.slug}/privacy`,
+		});
+	}
 	useEffect(() => {
 		if (!ref.current) return;
 		const observer = new IntersectionObserver(([entry]) =>
-			setIntersecting(entry.isIntersecting)
+			setIntersecting(entry.isIntersecting),
 		);
 
 		observer.observe(ref.current);
