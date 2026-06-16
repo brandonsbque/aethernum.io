@@ -36,3 +36,11 @@ yarn-error.log*
 next-env.d.ts
 
 .contentlayer
+
+# cdk
+infra/node_modules/
+infra/dist/
+infra/cdk.out/
+
+# local tooling
+.local/
