@@ -118,14 +118,25 @@ This document describes the deployment architecture for `aethernum.io`, a Next.j
 }
 ```
 
-## GitHub Actions Secrets Required
+## GitHub Actions Secrets & Variables Required
 
-| Secret Name             | Description                          |
-|-------------------------|--------------------------------------|
-| `AWS_ACCESS_KEY_ID`     | IAM user access key for deploy user  |
-| `AWS_SECRET_ACCESS_KEY` | IAM user secret key for deploy user  |
+### Secrets
 
-The IAM user should have only the S3 + CloudFront permissions listed above (least privilege).
+| Secret Name     | Description                                                                    |
+|-----------------|--------------------------------------------------------------------------------|
+| `AWS_ROLE_ARN`  | ARN of the IAM role that GitHub OIDC assumes (e.g. `arn:aws:iam::236128511652:role/github-actions-deploy-aethernum`) |
+
+### Variables
+
+| Variable Name      | Description                          |
+|--------------------|--------------------------------------|
+| `AWS_REGION`       | AWS region for all operations        |
+| `BUCKET_NAME`      | S3 bucket name (e.g. `www.aethernum.io`) |
+| `DISTRIBUTION_ID`  | CloudFront distribution ID           |
+
+### Authentication
+
+The workflow uses **GitHub OIDC** (`id-token: write` + `aws-actions/configure-aws-credentials@v4` with `role-to-assume`). No long-lived IAM user access keys are stored or used. The IAM role's trust policy must be locked to `repo:brandonsbque/aethernum.io:ref:refs/heads/master`. See `docs/iam-trust-policy.json` for the exact trust policy and `docs/iam-permissions-policy.json` for the permissions policy.
 
 ## Key Design Decisions
 

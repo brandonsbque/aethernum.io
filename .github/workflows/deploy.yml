@@ -18,6 +18,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate CDK (infra/)
+        working-directory: infra
+        run: |
+          npm ci
+          npx tsc --noEmit
+          npx cdk synth
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -39,16 +46,32 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-1
+          role-session-name: github-actions-deploy-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Verify S3 bucket security
+        run: |
+          STATUS=$(aws s3api get-public-access-block \
+            --bucket "${{ vars.BUCKET_NAME }}" \
+            --query "PublicAccessBlockConfiguration" \
+            --output json)
+          echo "$STATUS" | python3 -c "
+          import json,sys; d=json.load(sys.stdin)
+          assert d['BlockPublicAcls'] == True, 'BlockPublicAcls not enabled!'
+          assert d['IgnorePublicAcls'] == True, 'IgnorePublicAcls not enabled!'
+          assert d['BlockPublicPolicy'] == True, 'BlockPublicPolicy not enabled!'
+          assert d['RestrictPublicBuckets'] == True, 'RestrictPublicBuckets not enabled!'
+          print('Bucket security checks passed')
+          "
 
       - name: Sync to S3
         run: |
-          aws s3 sync out/ s3://www.aethernum.io/ \
+          aws s3 sync out/ "s3://${{ vars.BUCKET_NAME }}/" \
             --delete \
             --cache-control "public, max-age=31536000, immutable"
 
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id EQ8Z0TJW63VDP \
+            --distribution-id "${{ vars.DISTRIBUTION_ID }}" \
             --paths "/*"
