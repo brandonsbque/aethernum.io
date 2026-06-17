@@ -51,18 +51,19 @@ jobs:
 
       - name: Verify S3 bucket security
         run: |
-          STATUS=$(aws s3api get-public-access-block \
+          aws s3api get-public-access-block \
             --bucket "${{ vars.BUCKET_NAME }}" \
             --query "PublicAccessBlockConfiguration" \
-            --output json)
-          echo "$STATUS" | python3 -c "
-          import json,sys; d=json.load(sys.stdin)
-          assert d['BlockPublicAcls'] == True, 'BlockPublicAcls not enabled!'
-          assert d['IgnorePublicAcls'] == True, 'IgnorePublicAcls not enabled!'
-          assert d['BlockPublicPolicy'] == True, 'BlockPublicPolicy not enabled!'
-          assert d['RestrictPublicBuckets'] == True, 'RestrictPublicBuckets not enabled!'
-          print('Bucket security checks passed')
-          "
+            --output json | jq -e '
+              .BlockPublicAcls == true and
+              .IgnorePublicAcls == true and
+              .BlockPublicPolicy == true and
+              .RestrictPublicBuckets == true
+            ' > /dev/null || {
+              echo "ERROR: Block Public Access not fully enabled on bucket ${{ vars.BUCKET_NAME }}"
+              exit 1
+            }
+          echo "Bucket security checks passed"
 
       - name: Sync to S3
         run: |

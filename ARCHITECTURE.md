@@ -49,7 +49,7 @@ This document describes the deployment architecture for `aethernum.io`, a Next.j
                                  ┌───────────────────────┐
                                  │  Step 6: AWS Auth     │
                                  │  configure-aws-creds  │
-                                 │  (secrets.AWS_*)      │
+                                 │  (OIDC + role ARN)    │
                                  └───────────┬───────────┘
                                              │
                                              ▼
