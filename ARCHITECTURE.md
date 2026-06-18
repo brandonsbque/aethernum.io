@@ -54,16 +54,31 @@ This document describes the deployment architecture for `aethernum.io`, a Next.j
                                              │
                                              ▼
                     ┌───────────────────────────────────────┐
-                    │   Step 7: Sync to S3                  │
-                    │  aws s3 sync out/ → www.aethernum.io  │
+                    │   Step 7: Retrieve stack outputs     │
+                    │  aws cloudformation describe-stacks  │
+                    │  AethernumSiteStack → bucket + dist  │
+                    └───────────────────┬───────────────────┘
+                                        │
+                                        ▼
+                    ┌───────────────────────────────────────┐
+                    │   Step 8: Verify S3 bucket security   │
+                    │  Block Public Access verification     │
+                    │  (BPA already enforced by CDK,        │
+                    │   verified as defense-in-depth)       │
+                    └───────────────────┬───────────────────┘
+                                        │
+                                        ▼
+                    ┌───────────────────────────────────────┐
+                    │   Step 9: Sync to S3                  │
+                    │  aws s3 sync out/ → s3://bucket/      │
                     │  --delete --cache-control headers     │
                     └───────────────────┬───────────────────┘
                                         │
                                         ▼
                     ┌───────────────────────────────────────┐
-                    │   Step 8: CloudFront Invalidation     │
+                    │   Step 10: CloudFront Invalidation    │
                     │  create-invalidation --paths "/*"     │
-                    │  Distribution: EQ8Z0TJW63VDP          │
+                    │  Distribution resolved dynamically    │
                     └───────────────────────────────────────┘
 ```
 
@@ -72,7 +87,8 @@ This document describes the deployment architecture for `aethernum.io`, a Next.j
 ### 1. Source Repository
 - **Repo:** `brandonsbque/aethernum.io`
 - **Default branch:** `master`
-- **Trigger:** Push to `master` initiates the deploy pipeline
+- **Trigger:** Push to `master` that touches relevant paths initiates the deploy pipeline
+- **Path filter:** `app/**`, `content/**`, `public/**`, config files, `util/**`, and the workflow itself
 
 ### 2. Build Environment
 - **CI runner:** GitHub Actions (`ubuntu-latest`)
@@ -82,41 +98,21 @@ This document describes the deployment architecture for `aethernum.io`, a Next.j
 - **Output:** Static HTML/CSS/JS in `out/` directory
 
 ### 3. Storage
-- **Bucket:** `www.aethernum.io` (us-east-1)
+- **Bucket:** CDK-managed (`aethernum-website`, resolved at deploy time via CloudFormation stack outputs)
 - **Strategy:** Full sync (`--delete`) — the bucket mirrors the build output exactly
 - **Cache headers:** `public, max-age=31536000, immutable` for all static assets
   - This works because the site is fully static; content hash-based filenames mean stale versions are never served
 
 ### 4. CDN
-- **Distribution:** `EQ8Z0TJW63VDP`
+- **Distribution:** CDK-managed (ID resolved at deploy time via CloudFormation stack outputs)
 - **Invalidation:** Full (`/*`) on every deploy
   - Alternative for future optimization: invalidate only changed paths (requires diff logic)
 
-### 5. IAM Permissions (required for the deploy user)
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "s3:PutObject",
-        "s3:DeleteObject",
-        "s3:ListBucket"
-      ],
-      "Resource": [
-        "arn:aws:s3:::www.aethernum.io",
-        "arn:aws:s3:::www.aethernum.io/*"
-      ]
-    },
-    {
-      "Effect": "Allow",
-      "Action": "cloudfront:CreateInvalidation",
-      "Resource": "arn:aws:cloudfront::236128511652:distribution/EQ8Z0TJW63VDP"
-    }
-  ]
-}
-```
+### 5. IAM Permissions (required for the deploy role)
+See `docs/iam-permissions-policy.json` for the full policy. The deploy role needs:
+- `s3:PutObject`, `s3:DeleteObject`, `s3:ListBucket`, `s3:GetBucketPublicAccessBlock` on the site bucket
+- `cloudfront:CreateInvalidation` on the CloudFront distribution (wildcard since ID is dynamic)
+- `cloudformation:DescribeStacks` on the `AethernumSiteStack` to resolve bucket name and distribution ID at deploy time
 
 ## GitHub Actions Secrets & Variables Required
 
@@ -131,8 +127,8 @@ This document describes the deployment architecture for `aethernum.io`, a Next.j
 | Variable Name      | Description                          |
 |--------------------|--------------------------------------|
 | `AWS_REGION`       | AWS region for all operations        |
-| `BUCKET_NAME`      | S3 bucket name (e.g. `www.aethernum.io`) |
-| `DISTRIBUTION_ID`  | CloudFront distribution ID           |
+
+> **Note:** `BUCKET_NAME` and `DISTRIBUTION_ID` are no longer stored as GitHub variables. They are resolved at deploy time via `aws cloudformation describe-stacks --stack-name AethernumSiteStack`, reading the CDK stack outputs (`BucketName`, `DistributionId`). This ensures the workflow always deploys to the correct resources without manual variable sync.
 
 ### Authentication
 
@@ -150,9 +146,11 @@ The workflow uses **GitHub OIDC** (`id-token: write` + `aws-actions/configure-aw
 
 The entire implementation lives in a single GitHub Actions workflow file at `.github/workflows/deploy.yml`. The workflow:
 
-- Must NOT reference any uncommitted secrets (use GitHub Actions secrets)
-- Must use the Next.js `output: "export"` config already in `next.config.mjs`
-- Must respect the existing `mkdocs.yml` (from the Chronark template) — the `on: push` trigger is `master`
+- Resolves S3 bucket name and CloudFront distribution ID dynamically from `AethernumSiteStack` CloudFormation stack outputs (no hardcoded identifiers)
+- Retrieves stack outputs via `aws cloudformation describe-stacks` after OIDC authentication
+- Preserves S3 Block Public Access verification as a defense-in-depth security check
+- Uses the Next.js `output: "export"` config already in `next.config.mjs`
+- Triggers on pushes to `master` that touch content paths (`app/`, `content/`, `public/`, config files, `util/`, and the workflow itself)
 
 ## Non-Goals (out of scope for this deploy pipeline)
 
