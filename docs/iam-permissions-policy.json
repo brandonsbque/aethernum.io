@@ -23,6 +23,11 @@
       "Effect": "Allow",
       "Action": "cloudformation:DescribeStacks",
       "Resource": "arn:aws:cloudformation:us-east-1:236128511652:stack/AethernumSiteStack/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "route53:ListHostedZonesByName",
+      "Resource": "*"
     }
   ]
 }
