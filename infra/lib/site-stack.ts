@@ -126,6 +126,7 @@ function handler(event) {
       encryption: s3.BucketEncryption.S3_MANAGED,
       enforceSSL: true,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      objectOwnership: s3.ObjectOwnership.OBJECT_WRITER,
       lifecycleRules: [
         {
           expiration: cdk.Duration.days(30),
