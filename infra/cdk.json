@@ -1,0 +1,14 @@
+{
+  "app": "npx ts-node bin/infra.ts",
+  "watch": {
+    "include": ["**"],
+    "exclude": ["README.md", "cdk*.json", "**/*.d.ts", "**/*.js", "tsconfig.json", "package*.json", "node_modules", "dist", "cdk.out"]
+  },
+  "context": {
+    "bucketName": "www.aethernum.io",
+    "distributionId": "EQ8Z0TJW63VDP",
+    "distributionDomainName": "",
+    "account": "236128511652",
+    "region": "us-east-1"
+  }
+}

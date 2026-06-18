@@ -1,0 +1,78 @@
+name: Deploy to S3 + CloudFront
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    # id-token: write is required for GitHub OIDC authentication with AWS.
+    # contents: read is needed for actions/checkout.
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate CDK (infra/)
+        working-directory: infra
+        run: |
+          npm ci
+          npx tsc --noEmit
+          npx cdk synth
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (Next.js static export)
+        run: pnpm build
+
+      - name: Configure AWS credentials via GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: github-actions-deploy-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Verify S3 bucket security
+        run: |
+          aws s3api get-public-access-block \
+            --bucket "${{ vars.BUCKET_NAME }}" \
+            --query "PublicAccessBlockConfiguration" \
+            --output json | jq -e '
+              .BlockPublicAcls == true and
+              .IgnorePublicAcls == true and
+              .BlockPublicPolicy == true and
+              .RestrictPublicBuckets == true
+            ' > /dev/null || {
+              echo "ERROR: Block Public Access not fully enabled on bucket ${{ vars.BUCKET_NAME }}"
+              exit 1
+            }
+          echo "Bucket security checks passed"
+
+      - name: Sync to S3
+        run: |
+          aws s3 sync out/ "s3://${{ vars.BUCKET_NAME }}/" \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.DISTRIBUTION_ID }}" \
+            --paths "/*"
