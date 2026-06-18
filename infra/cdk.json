@@ -5,6 +5,7 @@
     "exclude": ["README.md", "cdk*.json", "**/*.d.ts", "**/*.js", "tsconfig.json", "package*.json", "node_modules", "dist", "cdk.out"]
   },
   "context": {
+    "_comment": "account and region are fallbacks for local dev; CDK_DEFAULT_ACCOUNT / CDK_DEFAULT_REGION env vars take precedence (bin/infra.ts)",
     "bucketName": "aethernum-website",
     "domainName": "aethernum.io",
     "account": "236128511652",
