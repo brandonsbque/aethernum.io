@@ -15,6 +15,7 @@ on:
       - 'postcss.config.js'
       - 'tailwind.config.js'
       - 'tsconfig.json'
+      - 'infra/**'
       - '.github/workflows/deploy.yml'
       - 'util/**'
 
@@ -31,6 +32,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: github-actions-deploy-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Validate CDK (infra/)
         working-directory: infra
@@ -55,13 +63,6 @@ jobs:
 
       - name: Build (Next.js static export)
         run: pnpm build
-
-      - name: Configure AWS credentials via GitHub OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          role-session-name: github-actions-deploy-${{ github.run_id }}
-          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Retrieve stack outputs
         id: stack
