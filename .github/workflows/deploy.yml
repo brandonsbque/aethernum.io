@@ -65,52 +65,51 @@ jobs:
       - name: Build (Next.js static export)
         run: pnpm build
 
-      # --- Steps below require the CDK stack to be deployed first ---
-      # Uncomment after running `cdk deploy` once to create AethernumSiteStack.
+      - name: Retrieve stack outputs
+        id: stack
+        run: |
+          BUCKET_NAME=$(aws cloudformation describe-stacks \
+            --stack-name AethernumSiteStack \
+            --query "Stacks[0].Outputs[?OutputKey=='BucketName'].OutputValue" \
+            --output text)
+          DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
+            --stack-name AethernumSiteStack \
+            --query "Stacks[0].Outputs[?OutputKey=='DistributionId'].OutputValue" \
+            --output text)
 
-      # - name: Retrieve stack outputs
-      #   id: stack
-      #   run: |
-      #     BUCKET_NAME=$(aws cloudformation describe-stacks \
-      #       --stack-name AethernumSiteStack \
-      #       --query "Stacks[0].Outputs[?OutputKey=='BucketName'].OutputValue" \
-      #       --output text)
-      #     DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
-      #       --stack-name AethernumSiteStack \
-      #       --query "Stacks[0].Outputs[?OutputKey=='DistributionId'].OutputValue" \
-      #       --output text)
-      #     if [ -z "$BUCKET_NAME" ] || [ -z "$DISTRIBUTION_ID" ]; then
-      #       echo "ERROR: Could not resolve stack outputs from AethernumSiteStack"
-      #       exit 1
-      #     fi
-      #     echo "bucket_name=${BUCKET_NAME}" >> $GITHUB_OUTPUT
-      #     echo "distribution_id=${DISTRIBUTION_ID}" >> $GITHUB_OUTPUT
-      #     echo "Resolved bucket=${BUCKET_NAME} distribution=${DISTRIBUTION_ID}"
+          if [ -z "$BUCKET_NAME" ] || [ -z "$DISTRIBUTION_ID" ]; then
+            echo "ERROR: Could not resolve stack outputs from AethernumSiteStack"
+            exit 1
+          fi
 
-      # - name: Verify S3 bucket security
-      #   run: |
-      #     aws s3api get-public-access-block \
-      #       --bucket "${{ steps.stack.outputs.bucket_name }}" \
-      #       --query "PublicAccessBlockConfiguration" \
-      #       --output json | jq -e '
-      #         .BlockPublicAcls == true and
-      #         .IgnorePublicAcls == true and
-      #         .BlockPublicPolicy == true and
-      #         .RestrictPublicBuckets == true
-      #       ' > /dev/null || {
-      #         echo "ERROR: Block Public Access not fully enabled on bucket ${{ steps.stack.outputs.bucket_name }}"
-      #         exit 1
-      #       }
-      #     echo "Bucket security checks passed"
+          echo "bucket_name=${BUCKET_NAME}" >> $GITHUB_OUTPUT
+          echo "distribution_id=${DISTRIBUTION_ID}" >> $GITHUB_OUTPUT
+          echo "Resolved bucket=${BUCKET_NAME} distribution=${DISTRIBUTION_ID}"
 
-      # - name: Sync to S3
-      #   run: |
-      #     aws s3 sync out/ "s3://${{ steps.stack.outputs.bucket_name }}/" \
-      #       --delete \
-      #       --cache-control "public, max-age=31536000, immutable"
+      - name: Verify S3 bucket security
+        run: |
+          aws s3api get-public-access-block \
+            --bucket "${{ steps.stack.outputs.bucket_name }}" \
+            --query "PublicAccessBlockConfiguration" \
+            --output json | jq -e '
+              .BlockPublicAcls == true and
+              .IgnorePublicAcls == true and
+              .BlockPublicPolicy == true and
+              .RestrictPublicBuckets == true
+            ' > /dev/null || {
+              echo "ERROR: Block Public Access not fully enabled on bucket ${{ steps.stack.outputs.bucket_name }}"
+              exit 1
+            }
+          echo "Bucket security checks passed"
 
-      # - name: Invalidate CloudFront cache
-      #   run: |
-      #     aws cloudfront create-invalidation \
-      #       --distribution-id "${{ steps.stack.outputs.distribution_id }}" \
-      #       --paths "/*"
+      - name: Sync to S3
+        run: |
+          aws s3 sync out/ "s3://${{ steps.stack.outputs.bucket_name }}/" \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ steps.stack.outputs.distribution_id }}" \
+            --paths "/*"
