@@ -13,5 +13,5 @@ new AethernumSiteStack(app, 'AethernumSiteStack', {
     region,
   },
   description:
-    'aethernum.io production site — imports existing S3 bucket + CloudFront (no resource creation)',
+    'aethernum.io production site — S3 + CloudFront + ACM + Route53 (CDK-managed)',
 });
