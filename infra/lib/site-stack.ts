@@ -35,6 +35,7 @@ export class AethernumSiteStack extends cdk.Stack {
     const bucket = new s3.Bucket(this, 'SiteBucket', {
       bucketName,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
       versioned: true,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       enforceSSL: true,
@@ -114,7 +115,26 @@ function handler(event) {
       signing: cloudfront.Signing.SIGV4_ALWAYS,
     });
 
-    // ── 6. Security Headers Policy (HSTS) ──────────────────────────
+    // ── 6. CloudFront Access Logging Bucket ─────────────────────────
+    //
+    // Standard logs stored in a separate S3 bucket with a 30-day
+    // lifecycle policy to minimize cost (~$0.50/mo for a low-traffic
+    // site).  ACLs are disabled (bucket-owner-full-control is the
+    // default for new buckets).
+    const logBucket = new s3.Bucket(this, 'SiteLogBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+      lifecycleRules: [
+        {
+          expiration: cdk.Duration.days(30),
+        },
+      ],
+    });
+
+    // ── 7. Security Headers Policy ──────────────────────────────────
     const securityHeaders = new cloudfront.ResponseHeadersPolicy(
       this,
       'SecurityHeaders',
@@ -126,11 +146,23 @@ function handler(event) {
             includeSubdomains: true,
             // preload deferred until after verification per architect decision
           },
+          contentTypeOptions: {
+            override: true,
+          },
+          frameOptions: {
+            override: true,
+            frameOption: cloudfront.HeadersFrameOption.DENY,
+          },
+          referrerPolicy: {
+            override: true,
+            referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
+          },
+          // CSP deferred — static site with no user input; add if forms/APIs are introduced
         },
       },
     );
 
-    // ── 7. CloudFront Distribution ─────────────────────────────────
+    // ── 8. CloudFront Distribution ─────────────────────────────────
     //
     // Origin: S3 REST endpoint via OAC (no OAI, no legacy S3Origin).
     // Viewer protocol: redirect HTTP → HTTPS.
@@ -154,9 +186,11 @@ function handler(event) {
       certificate,
       priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
       defaultRootObject: 'index.html',
+      logBucket,
+      logFilePrefix: 'cloudfront/',
     });
 
-    // ── 8. Route53 Records ─────────────────────────────────────────
+    // ── 9. Route53 Records ─────────────────────────────────────────
     //
     // Both apex and www are A-record aliases to CloudFront.
     // The www→apex redirect is handled by the CloudFront Function above,
@@ -185,5 +219,6 @@ function handler(event) {
       value: distribution.distributionDomainName,
     });
     new cdk.CfnOutput(this, 'DomainName', { value: domainName });
+    new cdk.CfnOutput(this, 'LogBucketName', { value: logBucket.bucketName });
   }
 }
