@@ -27,7 +27,7 @@ export const Header: React.FC<Props> = ({ project }) => {
 	if (project.url) {
 		links.push({
 			label: "App Store",
-			href: project.url,
+			href: "https://apps.apple.com/us/app/walletwise-smart-reminders/id6743142357",
 		});
 	}
 	if (project.email) {
